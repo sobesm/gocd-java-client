@@ -27,7 +27,11 @@ public class HttpClient {
     private final int readTimeout;
 
     public HttpClient(String username, String password, Proxy proxy) {
-        this(username, password, proxy, DEFAULT_SOCKET_TIMEOUT, DEFAULT_READ_TIMEOUT, false);
+        this(username, password, proxy, DEFAULT_SOCKET_TIMEOUT, DEFAULT_READ_TIMEOUT);
+    }
+
+    public HttpClient(String username, String password, Proxy proxy, int socketTimeout, int readTimeout) {
+        this(username, password, proxy, socketTimeout, readTimeout, false);
     }
 
     public HttpClient(String username, String password) {

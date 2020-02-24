@@ -103,7 +103,7 @@ public class GoCD {
     }
 
     public Pipeline pipelineInstance(String pipeline, int pipelineCounter) throws IOException {
-        return client.getAs(buildUrl(API_PREFIX+ pipeline + "/instance/" + pipelineCounter), Pipeline.class);
+        return client.getAs(buildUrl(API_PREFIX + pipeline + "/instance/" + pipelineCounter), Pipeline.class);
     }
 
     public History pipelineHistory(String pipeline) throws IOException {
