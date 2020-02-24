@@ -6,12 +6,9 @@ import com.google.gson.JsonObject;
 import in.ashwanthkumar.gocd.client.http.HttpClient;
 import in.ashwanthkumar.gocd.client.types.*;
 import in.ashwanthkumar.utils.collections.Lists;
-import in.ashwanthkumar.utils.func.Function;
-import in.ashwanthkumar.utils.func.Predicate;
 import in.ashwanthkumar.utils.lang.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,8 +32,8 @@ import static in.ashwanthkumar.utils.collections.Lists.map;
  */
 public class GoCD {
 
-    private static Logger LOG = LoggerFactory.getLogger(GoCD.class);
-
+    private static final Logger LOG = LoggerFactory.getLogger(GoCD.class);
+    private static final String API_PREFIX = "/go/api/pipelines/";
     private String server;
     private HttpClient client;
 
@@ -58,21 +55,12 @@ public class GoCD {
         String xml = client.getXML(buildUrl("/go/api/pipelines.xml"));
         Document doc = Jsoup.parse(xml);
         Elements pipelineElements = doc.select("pipeline[href]");
-        List<String> pipelines = filter(map(pipelineElements, new Function<Element, String>() {
-            @Override
-            public String apply(Element element) {
-                String href = element.attr("href");
-                String apiPrefix = "/go/api/pipelines/";
-                return href.substring(href.indexOf(apiPrefix) + apiPrefix.length(), href.indexOf("/stages.xml"));
-            }
-        }), new Predicate<String>() {
-            @Override
-            public Boolean apply(String s) {
-                return StringUtils.isEmpty(pipelinePrefix) || s.startsWith(pipelinePrefix);
-            }
-        });
+        return filter(map(pipelineElements, element -> {
+            String href = element.attr("href");
 
-        return pipelines;
+            return href.substring(href.indexOf(API_PREFIX) + API_PREFIX.length(), href.indexOf("/stages.xml"));
+        }), s -> StringUtils.isEmpty(pipelinePrefix) || s.startsWith(pipelinePrefix));
+
     }
 
     public List<PipelineDependency> upstreamDependencies(String pipeline, int version) throws IOException {
@@ -111,11 +99,11 @@ public class GoCD {
     }
 
     public PipelineStatus pipelineStatus(String pipeline) throws IOException {
-        return client.getAs(buildUrl("/go/api/pipelines/" + pipeline + "/status"), PipelineStatus.class);
+        return client.getAs(buildUrl(API_PREFIX + pipeline + "/status"), PipelineStatus.class);
     }
 
     public Pipeline pipelineInstance(String pipeline, int pipelineCounter) throws IOException {
-        return client.getAs(buildUrl("/go/api/pipelines/" + pipeline + "/instance/" + pipelineCounter), Pipeline.class);
+        return client.getAs(buildUrl(API_PREFIX+ pipeline + "/instance/" + pipelineCounter), Pipeline.class);
     }
 
     public History pipelineHistory(String pipeline) throws IOException {
@@ -123,7 +111,7 @@ public class GoCD {
     }
 
     public History pipelineHistory(String pipeline, int offset) throws IOException {
-        return client.getAs(buildUrl("/go/api/pipelines/" + pipeline + "/history/" + offset), History.class);
+        return client.getAs(buildUrl(API_PREFIX + pipeline + "/history/" + offset), History.class);
     }
 
     public Map<Integer, PipelineRunStatus> pipelineRunStatus(String pipeline) throws IOException {
@@ -138,7 +126,7 @@ public class GoCD {
                 continue;
 
             PipelineRunStatus status = pipelineStatusFrom(pipeline.getStages());
-            LOG.debug(pipeline + "@" + pipeline.getCounter() + " has " + status);
+            LOG.debug("{}@{} has {}", pipeline, pipeline.getCounter(), status);
             result.put(pipeline.getCounter(), status);
         }
         return result;

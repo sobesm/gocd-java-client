@@ -11,35 +11,45 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.Proxy;
+import java.security.GeneralSecurityException;
 
 public class HttpClient {
     private static Logger LOG = LoggerFactory.getLogger(HttpClient.class);
 
-    private final static int DEFAULT_SOCKET_TIMEOUT = 600 * 1000;
-    private final static int DEFAULT_READ_TIMEOUT = 600 * 1000;
+    private static final int DEFAULT_SOCKET_TIMEOUT = 600 * 1000;
+    private static final int DEFAULT_READ_TIMEOUT = 600 * 1000;
 
     // for tests
     private String mockResponse;
 
-    private final HttpRequestFactory requestFactory;
+    private HttpRequestFactory requestFactory;
     private final int socketTimeout;
     private final int readTimeout;
 
     public HttpClient(String username, String password, Proxy proxy) {
-        this(username, password, proxy, DEFAULT_SOCKET_TIMEOUT, DEFAULT_READ_TIMEOUT);
+        this(username, password, proxy, DEFAULT_SOCKET_TIMEOUT, DEFAULT_READ_TIMEOUT, false);
     }
 
     public HttpClient(String username, String password) {
         this(username, password, null);
     }
 
-    public HttpClient(String username, String password, Proxy proxy, int socketTimeout, int readTimeout) {
+    public HttpClient(String username, String password, Proxy proxy, int socketTimeout, int readTimeout, boolean doNotValidateCertificate) {
         NetHttpTransport.Builder builder = new NetHttpTransport.Builder();
         if (proxy != null) {
             builder.setProxy(proxy);
         }
         if (username != null && password != null) {
-            requestFactory = builder.build().createRequestFactory(new BasicAuthentication(username, password));
+            try {
+                if (doNotValidateCertificate) {
+                    requestFactory = builder.doNotValidateCertificate().build().createRequestFactory(new BasicAuthentication(username, password));
+                } else {
+                    requestFactory = builder.build().createRequestFactory(new BasicAuthentication(username, password));
+                }
+            } catch (GeneralSecurityException e) {
+                LOG.warn("Could not do not validate certificate {}", e);
+                requestFactory = builder.build().createRequestFactory(new BasicAuthentication(username, password));
+            }
         } else {
             requestFactory = builder.build().createRequestFactory();
         }
@@ -82,7 +92,7 @@ public class HttpClient {
     }
 
     public HttpRequest invokeGET(String url) throws IOException {
-        LOG.debug("Hitting " + url);
+        LOG.debug("Hitting {}", url);
         return requestFactory.buildGetRequest(new GenericUrl(url))
                 .setConnectTimeout(this.socketTimeout)
                 .setReadTimeout(this.readTimeout);
